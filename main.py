@@ -183,6 +183,59 @@ def run(
 
 
 @app.command()
+def video(
+    topic: str = typer.Argument(
+        ...,
+        help=(
+            "Video topic, e.g. 'How to add a paywall to a Flutter app' or "
+            "'RevenueCat Experiments: A/B test your pricing'"
+        ),
+    ),
+    platform: str = typer.Option(
+        "youtube",
+        "--platform", "-p",
+        help="Target platform: youtube, twitter, linkedin, instagram, reels, tiktok",
+    ),
+    duration: int = typer.Option(
+        120,
+        "--duration", "-d",
+        help="Target duration in seconds (e.g. 60, 120, 300)",
+    ),
+    style: str = typer.Option(
+        "dark_purple",
+        "--style", "-s",
+        help="Default slide style: dark_purple, gradient, light, code_card",
+    ),
+    filename: str = typer.Option(
+        "",
+        "--filename", "-f",
+        help="Output filename without .mp4 extension (auto-generated if not set)",
+    ),
+):
+    """
+    Write a video script and render it as a real .mp4 file.
+
+    The agent researches the topic, writes a scene-by-scene script, generates
+    spoken narration via text-to-speech, and produces a playable MP4 with
+    slides + audio. No external video API required.
+
+    Examples:
+      python main.py video "Getting started with RevenueCat on iOS"
+      python main.py video "RevenueCat Paywalls no-code builder" -p instagram -d 60
+      python main.py video "StoreKit 2 vs RevenueCat" -p youtube -d 300 --style gradient
+    """
+    _check_api_key()
+    agent = _get_agent()
+    agent.create_video(
+        topic=topic,
+        platform=platform,
+        duration_hint=duration,
+        style=style,
+        filename=filename or None,
+    )
+
+
+@app.command()
 def social(
     topic: str = typer.Argument(
         ...,

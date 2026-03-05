@@ -374,6 +374,119 @@ Quality bar:
 """
         return self.run(task)
 
+    def create_video(
+        self,
+        topic: str,
+        platform: str = "youtube",
+        duration_hint: int = 120,
+        style: str = "dark_purple",
+        filename: str | None = None,
+    ) -> str:
+        """
+        Write a video script and render it as a real .mp4 file.
+
+        The agent:
+        1. Researches the topic
+        2. Writes a scene-by-scene script (JSON scenes array)
+        3. Calls render_video_from_script to produce the MP4 (with TTS narration)
+
+        Args:
+            topic: What the video is about.
+            platform: Target platform — affects resolution and style.
+                      youtube|twitter|linkedin → 1280x720 (16:9)
+                      instagram → 1080x1080 (square)
+                      reels|tiktok → 1080x1920 (vertical 9:16)
+            duration_hint: Approximate target duration in seconds.
+            style: Default visual style for slides.
+            filename: Output filename (without .mp4). Auto-generated if None.
+        """
+        RESOLUTION_MAP = {
+            "youtube":   "1280x720",
+            "twitter":   "1280x720",
+            "linkedin":  "1280x720",
+            "instagram": "1080x1080",
+            "reels":     "1080x1920",
+            "tiktok":    "1080x1920",
+        }
+        resolution = RESOLUTION_MAP.get(platform.lower(), "1280x720")
+
+        slug = topic.lower().replace(" ", "-")[:40].strip("-")
+        out_filename = filename or f"video-{platform}-{slug}"
+
+        scene_count_hint = max(4, min(15, duration_hint // 10))
+
+        task = f"""
+Create and render a complete video about: **{topic}**
+
+Target platform: {platform} | Resolution: {resolution} | ~{duration_hint}s | Style: {style}
+
+## Step 1 — Research
+Use web_search to gather current, accurate information about the topic.
+Find real code examples, accurate RevenueCat API names, and relevant developer pain points.
+
+## Step 2 — Write the Script (as JSON)
+Design ~{scene_count_hint} scenes. Write them as a JSON array with this exact structure
+(you will pass this array directly to render_video_from_script):
+
+[
+  {{
+    "title": "Hook",
+    "on_screen_text": "Short text shown BIG on screen (≤8 words)",
+    "narration": "Full spoken sentence(s) for this scene. Clear, conversational.",
+    "body_text": "Optional smaller supporting text shown under headline.",
+    "slide_type": "title",
+    "style": "{style}"
+  }},
+  {{
+    "title": "Problem",
+    "on_screen_text": "The problem developers face",
+    "narration": "Narration about the problem...",
+    "slide_type": "text",
+    "style": "{style}"
+  }},
+  {{
+    "title": "Code Demo",
+    "on_screen_text": "One line of code that says it all",
+    "narration": "Here's how you'd do this with RevenueCat in Swift...",
+    "code": "// Real, correct Swift/Kotlin/Dart code here\\nPurchases.configure(withAPIKey: \\"YOUR_KEY\\")",
+    "slide_type": "code",
+    "style": "code_card"
+  }},
+  {{
+    "title": "CTA",
+    "on_screen_text": "Try RevenueCat Free",
+    "narration": "Get started at rev.cat — free up to 2,500 dollars monthly revenue.",
+    "body_text": "rev.cat/start",
+    "slide_type": "cta",
+    "style": "{style}"
+  }}
+]
+
+Script quality rules:
+- First scene: HOOK — grab attention in the first line of narration.
+- on_screen_text must be SHORT (≤8 words). This is what viewers read at a glance.
+- narration is the full spoken sentence — can be longer, conversational.
+- Code slides must have real, working code (not pseudocode).
+- Last scene: always a clear CTA with a specific URL or action.
+- Spread information: don't put everything in one slide.
+- Total narration reading time should be close to {duration_hint}s.
+
+## Step 3 — Render the Video
+Call render_video_from_script with:
+  - filename: "{out_filename}"
+  - scenes: [your JSON array from step 2]
+  - resolution: "{resolution}"
+  - use_tts: true
+
+## Step 4 — Report Results
+Return:
+- The full scene list (titles + narration)
+- The MP4 file path
+- Total duration
+- Any notes for editing or improvement
+"""
+        return self.run(task)
+
     def interview(
         self,
         interviewer_name: str = "",

@@ -7,6 +7,7 @@ from agent.tools.definitions import (
     generate_product_feedback,
     generate_social_graphic,
     generate_video_storyboard,
+    render_video_from_script,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "generate_product_feedback",
     "generate_social_graphic",
     "generate_video_storyboard",
+    "render_video_from_script",
 ]

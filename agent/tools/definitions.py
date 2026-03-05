@@ -261,6 +261,75 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "render_video_from_script",
+        "description": (
+            "Render a complete .mp4 video from a structured script. "
+            "Each scene becomes a slide with on-screen text; narration is spoken aloud "
+            "via text-to-speech (gTTS). The output is a real MP4 file saved to disk. "
+            "Use this after writing a video script to produce the actual video."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string",
+                    "description": "Output filename without extension, e.g. 'revenuecat-storekit2-intro'. Will be saved as .mp4.",
+                },
+                "scenes": {
+                    "type": "array",
+                    "description": (
+                        "Ordered list of scenes. Each scene is an object with: "
+                        "title (str), on_screen_text (str, shown large on screen), "
+                        "narration (str, spoken aloud), body_text (str, smaller supporting text, optional), "
+                        "code (str, code snippet for code slides, optional), "
+                        "duration (float, seconds, optional — auto-set by TTS length), "
+                        "slide_type (str: 'text'|'title'|'code'|'cta', optional), "
+                        "style (str: 'dark_purple'|'gradient'|'light'|'code_card', optional)."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "on_screen_text": {"type": "string"},
+                            "narration": {"type": "string"},
+                            "body_text": {"type": "string"},
+                            "code": {"type": "string"},
+                            "duration": {"type": "number"},
+                            "slide_type": {
+                                "type": "string",
+                                "enum": ["text", "title", "code", "cta"],
+                            },
+                            "style": {
+                                "type": "string",
+                                "enum": ["dark_purple", "gradient", "light", "code_card"],
+                            },
+                        },
+                        "required": ["on_screen_text", "narration"],
+                    },
+                },
+                "resolution": {
+                    "type": "string",
+                    "enum": ["1280x720", "1920x1080", "1080x1080", "1080x1920"],
+                    "description": (
+                        "Video resolution. "
+                        "1280x720=YouTube/Twitter (16:9 HD), "
+                        "1920x1080=YouTube (Full HD), "
+                        "1080x1080=Instagram square, "
+                        "1080x1920=Reels/TikTok (9:16 vertical)."
+                    ),
+                },
+                "use_tts": {
+                    "type": "boolean",
+                    "description": (
+                        "Whether to generate spoken narration via text-to-speech. "
+                        "Requires internet access. Defaults to true."
+                    ),
+                },
+            },
+            "required": ["filename", "scenes"],
+        },
+    },
+    {
         "name": "generate_product_feedback",
         "description": (
             "Generate a structured product feedback report for RevenueCat's product team. "
@@ -522,6 +591,49 @@ def generate_product_feedback(
             "proposed solution, competitive analysis, and priority justification."
         ),
     }
+
+
+def render_video_from_script(
+    filename: str,
+    scenes: list[dict],
+    resolution: str = "1280x720",
+    use_tts: bool = True,
+) -> dict[str, Any]:
+    """Render a structured scene list into a real .mp4 video."""
+    from agent.tools.video_renderer import parse_script, render_video as _render_video
+
+    # Parse resolution
+    try:
+        w, h = (int(x) for x in resolution.split("x"))
+    except Exception:
+        w, h = 1280, 720
+
+    safe_name = filename.replace("/", "_").replace("\\", "_")
+    if not safe_name.endswith(".mp4"):
+        safe_name += ".mp4"
+    output_path = OUTPUT_DIR / safe_name
+
+    parsed_scenes = parse_script(scenes)
+
+    if not parsed_scenes:
+        return {"success": False, "error": "No scenes could be parsed from the provided script."}
+
+    result = _render_video(
+        scenes=parsed_scenes,
+        output_path=output_path,
+        width=w,
+        height=h,
+        use_tts=use_tts,
+    )
+
+    if result.get("success"):
+        result["filename"] = safe_name
+        result["content_type"] = "video"
+        result["note"] = (
+            f"MP4 saved to {output_path}. "
+            "Play with any video player or upload directly to social platforms."
+        )
+    return result
 
 
 def generate_social_graphic(
@@ -904,6 +1016,7 @@ def execute_tool(tool_name: str, tool_input: dict[str, Any]) -> Any:
         "generate_product_feedback": generate_product_feedback,
         "generate_social_graphic": generate_social_graphic,
         "generate_video_storyboard": generate_video_storyboard,
+        "render_video_from_script": render_video_from_script,
     }
 
     if tool_name not in handlers:
