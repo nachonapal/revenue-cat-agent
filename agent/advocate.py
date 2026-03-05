@@ -487,6 +487,103 @@ Return:
 """
         return self.run(task)
 
+    def autopublish(
+        self,
+        count: int = 3,
+    ) -> str:
+        """
+        Autonomously generate a complete content package (blog + social + video).
+
+        The agent:
+        1. Researches trending topics in mobile subscriptions / RevenueCat space
+        2. Identifies gaps in current content
+        3. Selects the best topic and creates a full package:
+           - Blog post (2000+ words)
+           - Social media graphics (Twitter, LinkedIn, Instagram)
+           - Social copy for each platform
+           - Video script + MP4 rendering
+
+        Args:
+            count: Number of content ideas to research before selecting the best.
+        """
+        task = f"""
+## Autonomous Content Generation Task
+
+Research and autonomously create a COMPLETE content package (no user iteration needed).
+
+### Step 1: Research & Ideate
+1. Use web_search to find:
+   - Current trending topics in mobile subscriptions (Jan-Mar 2026)
+   - Common developer pain points on Reddit, GitHub Discussions, Stack Overflow
+   - Recent RevenueCat announcements or feature releases
+   - Gaps in RevenueCat's existing content
+
+2. Generate {count} unique content ideas. For each idea, create:
+   - Working title (max 60 chars)
+   - Target audience (developers, CTOs, founders)
+   - Key talking points (3-5 bullets)
+   - Why NOW is the right time
+   - Expected reach (rough estimate)
+
+### Step 2: Select & Commit
+Pick the SINGLE BEST idea (most timely, most valuable, best audience fit).
+This is what you'll create the full package for.
+
+### Step 3: Create Full Content Package
+
+Execute these steps IN ORDER:
+
+**A) Blog Post** (save_content with content_type: blog_post)
+- 2000+ words, technical depth, real code examples
+- Table of contents, working examples, troubleshooting
+- Include at least 2 different languages (Swift + Kotlin or Flutter)
+- SEO-optimized headings and meta description
+
+**B) Social Graphics & Copy** (use create_social_content internally)
+- Create for: twitter, linkedin, instagram
+- Generate SVG graphics for each (use generate_social_graphic)
+- Platform-native copy (threads, professional posts, captions + hashtags)
+- Save the complete social package
+
+**C) Video Script & MP4** (use create_video internally)
+- 60-90 second YouTube video
+- Scene-by-scene breakdown
+- Professional narration via TTS
+- Code demo slide
+- Render to actual .mp4 file
+
+**D) Summary Document**
+Save a manifest listing:
+- Blog post title + URL (path)
+- Video MP4 file
+- Social graphics + copy
+- Publishing checklist
+- Suggested hashtags & keywords
+
+### Step 4: Report
+Return a summary with:
+- Chosen topic (why?)
+- Files created (paths + sizes)
+- Content quality metrics (reading time, video duration, graphics count)
+- Next steps (where to publish, optimal posting times)
+
+---
+
+## Quality Requirements
+- Blog code examples: REAL, tested, working Swift/Kotlin/Dart
+- Social copy: Developer-first tone, not marketing fluff
+- Video: Professional quality, engaging hook, clear CTA
+- All files ready for immediate publication
+
+## Timeline Estimate
+You have no time limit — create each piece thoroughly. Perfection > Speed.
+
+---
+
+**Execute now. Create 1 complete, publication-ready content package autonomously.**
+"""
+        return self.run(task)
+
     def interview(
         self,
         interviewer_name: str = "",

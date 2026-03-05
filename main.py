@@ -236,6 +236,38 @@ def video(
 
 
 @app.command()
+def autopublish(
+    count: int = typer.Option(
+        3,
+        "--count", "-c",
+        help="Number of content ideas to research before picking the best",
+    ),
+):
+    """
+    Autonomously research and create a complete content package.
+
+    The agent independently:
+    1. Researches trending topics in mobile subscriptions (no user input)
+    2. Selects the best topic to cover
+    3. Creates a FULL publication-ready package:
+       - Blog post (2000+ words with real code)
+       - Social graphics (Twitter, LinkedIn, Instagram SVGs)
+       - Social copy for each platform
+       - Video script + MP4 with spoken narration
+
+    All files saved to outputs/ — ready to publish immediately.
+    This is autonomous content creation at scale.
+
+    Examples:
+      python main.py autopublish
+      python main.py autopublish -c 5  # Research 5 ideas before picking
+    """
+    _check_api_key()
+    agent = _get_agent()
+    agent.autopublish(count=count)
+
+
+@app.command()
 def social(
     topic: str = typer.Argument(
         ...,
