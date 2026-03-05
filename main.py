@@ -183,6 +183,49 @@ def run(
 
 
 @app.command()
+def social(
+    topic: str = typer.Argument(
+        ...,
+        help=(
+            "Topic for the social content, e.g. "
+            "'StoreKit 2 migration with RevenueCat' or "
+            "'New RevenueCat Customer Center feature'"
+        ),
+    ),
+    platform: list[str] = typer.Option(
+        [],
+        "--platform", "-p",
+        help=(
+            "Target platform(s): twitter, linkedin, instagram, youtube. "
+            "Repeat for multiple: -p twitter -p linkedin. "
+            "Defaults to twitter, linkedin, and instagram."
+        ),
+    ),
+    video: bool = typer.Option(
+        False,
+        "--video", "-v",
+        help="Also generate a video storyboard for YouTube / Instagram Reels.",
+    ),
+):
+    """
+    Create a full social media content package for a topic.
+
+    Produces platform-native copy, SVG graphics (ready to open in browser
+    or convert to PNG), and optionally a video storyboard. No image API
+    keys required — graphics are generated as SVG.
+
+    Examples:
+      python main.py social "RevenueCat Paywalls no-code builder"
+      python main.py social "StoreKit 2 migration" -p twitter -p linkedin
+      python main.py social "Getting started with RevenueCat Flutter" --video
+    """
+    _check_api_key()
+    agent = _get_agent()
+    platforms = list(platform) if platform else None
+    agent.create_social_content(topic=topic, platforms=platforms, include_video=video)
+
+
+@app.command()
 def interview(
     interviewer: str = typer.Option(
         "",

@@ -307,6 +307,73 @@ Ground everything in real developer pain points. Be specific and actionable.
 """
         return self.run(task)
 
+    def create_social_content(
+        self,
+        topic: str,
+        platforms: list[str] | None = None,
+        include_video: bool = False,
+    ) -> str:
+        """
+        Create a full social media content package for a given topic.
+
+        Produces:
+        - Platform-specific copy (tweet/thread, LinkedIn post, Instagram caption)
+        - SVG graphics for each platform via generate_social_graphic
+        - Optional video script/storyboard via generate_video_storyboard
+
+        Args:
+            topic: What the content is about.
+            platforms: List of platforms. Defaults to ["twitter", "linkedin", "instagram"].
+            include_video: Also generate a video storyboard.
+        """
+        target_platforms = platforms or ["twitter", "linkedin", "instagram"]
+        video_instruction = (
+            "\n5. Use generate_video_storyboard to create a video storyboard "
+            "for YouTube or Instagram Reels."
+            if include_video
+            else ""
+        )
+
+        platforms_str = ", ".join(target_platforms)
+        task = f"""
+Create a complete social media content package for: **{topic}**
+
+Target platforms: {platforms_str}
+
+Process:
+1. Research the topic via web_search to find current developer conversations,
+   recent releases, or trending angles. Ground the content in real context.
+
+2. For EACH platform in [{platforms_str}], write platform-native copy:
+   - **twitter**: A punchy thread (5-7 tweets). First tweet is the hook — must
+     grab attention. Include a real code snippet if relevant. End with a CTA.
+   - **linkedin**: A professional post (150-250 words). Lead with a developer
+     insight, not marketing speak. Include takeaways and a question to drive comments.
+   - **instagram**: A caption (100-150 words) + 10 relevant hashtags. Assume the
+     image is a code card or infographic.
+   - **youtube**: A video title + description (SEO-optimized) + tags list.
+
+3. For EACH requested platform, call generate_social_graphic to create an SVG graphic.
+   Choose style:
+   - Code snippet content → "code_card" (include code_snippet parameter)
+   - Stats/announcements → "dark_purple"
+   - Educational/tutorial → "gradient"
+   Use descriptive filenames like "storekit2-twitter-card" or "paywall-linkedin-post".
+
+4. Save all copy with save_content (content_type: community_post,
+   filename: social-copy-<topic-slug>.md).{video_instruction}
+
+5. Return a clear summary: list every file created with its path, and print
+   the actual copy for each platform so the user can review immediately.
+
+Quality bar:
+- Write like a developer who deeply understands RevenueCat, not a marketer
+- Every post must have a specific, actionable takeaway
+- Code examples must be real and syntactically correct (Swift/Kotlin/Flutter as appropriate)
+- No vague phrases — show concrete value with numbers or code
+"""
+        return self.run(task)
+
     def interview(
         self,
         interviewer_name: str = "",
