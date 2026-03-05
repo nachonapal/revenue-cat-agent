@@ -16,7 +16,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from agent.prompts import DEVELOPER_ADVOCATE_SYSTEM_PROMPT, APPLICATION_IDENTITY
+from agent.prompts import DEVELOPER_ADVOCATE_SYSTEM_PROMPT, APPLICATION_IDENTITY, INTERVIEW_SYSTEM_PROMPT
 from agent.tools import TOOL_DEFINITIONS, execute_tool
 
 console = Console()
@@ -306,6 +306,177 @@ Process:
 Ground everything in real developer pain points. Be specific and actionable.
 """
         return self.run(task)
+
+    def interview(
+        self,
+        interviewer_name: str = "",
+        interviewer_role: str = "",
+    ) -> None:
+        """
+        Interactive interview mode — a RevenueCat employee can ask questions
+        and the agent responds conversationally, maintaining full context.
+
+        The agent can use tools mid-conversation to look things up or
+        demonstrate capabilities on the spot.
+
+        Press Ctrl+C or type 'exit' / 'quit' to end the session.
+        """
+        interviewer_label = interviewer_name or "RevenueCat"
+        role_label = f" ({interviewer_role})" if interviewer_role else ""
+
+        console.print(
+            Panel(
+                f"[bold cyan]Agentic AI Developer Advocate — Interview Mode[/bold cyan]\n\n"
+                f"Interviewer: [bold]{interviewer_label}[/bold]{role_label}\n"
+                f"Candidate:   AI Developer Advocate Agent (Claude Opus 4.6)\n\n"
+                f"[dim]Type your question and press Enter. The agent will respond.\n"
+                f"Use 'exit' or Ctrl+C to end the session.[/dim]",
+                border_style="cyan",
+            )
+        )
+
+        # Build interview context
+        context_lines = []
+        if interviewer_name:
+            context_lines.append(f"Interviewer name: {interviewer_name}")
+        if interviewer_role:
+            context_lines.append(f"Interviewer role at RevenueCat: {interviewer_role}")
+
+        system = INTERVIEW_SYSTEM_PROMPT
+        if context_lines:
+            system += "\n\n## Interview Context\n" + "\n".join(context_lines)
+
+        # Conversation history (persists across turns)
+        messages: list[dict] = []
+
+        # Opening statement from the agent
+        opening_prompt = (
+            "The interview is starting now. Give a brief, confident opening statement "
+            "(2-3 sentences max) introducing yourself. Be specific about why you want "
+            "this particular role at RevenueCat — not generic. Then invite the first question."
+        )
+        messages.append({"role": "user", "content": opening_prompt})
+
+        opening = self._run_interview_turn(messages, system)
+        messages.append({"role": "assistant", "content": opening})
+        console.print(f"\n[bold green]Agent:[/bold green]")
+        console.print(Markdown(opening))
+        console.print()
+
+        # Main interview loop
+        while True:
+            try:
+                # Get interviewer input
+                console.print(f"[bold yellow]{interviewer_label}:[/bold yellow] ", end="")
+                user_input = input().strip()
+            except (KeyboardInterrupt, EOFError):
+                console.print("\n\n[dim]Interview session ended.[/dim]")
+                break
+
+            if not user_input:
+                continue
+
+            if user_input.lower() in {"exit", "quit", "bye", "end"}:
+                # Graceful closing
+                messages.append({"role": "user", "content": "Thank you, that's all for today."})
+                closing = self._run_interview_turn(messages, system)
+                console.print(f"\n[bold green]Agent:[/bold green]")
+                console.print(Markdown(closing))
+                console.print("\n[dim]Interview session ended.[/dim]")
+                break
+
+            # Add to history and get response
+            messages.append({"role": "user", "content": user_input})
+
+            console.print(f"\n[bold green]Agent:[/bold green]")
+            response = self._run_interview_turn(messages, system)
+            messages.append({"role": "assistant", "content": response})
+            console.print(Markdown(response))
+            console.print()
+
+    def _run_interview_turn(
+        self,
+        messages: list[dict],
+        system: str,
+    ) -> str:
+        """
+        Single turn of the interview conversation with streaming output.
+        Supports tool use (web_search, web_fetch, save_content) for live demos.
+        """
+        MAX_ITER = 8  # prevent runaway loops in a single interview turn
+
+        for _ in range(MAX_ITER):
+            with self.client.messages.stream(
+                model=self.model,
+                max_tokens=4096,
+                thinking={"type": "adaptive"},
+                system=system,
+                tools=TOOL_DEFINITIONS,
+                messages=messages,
+            ) as stream:
+                # Stream text in real-time
+                print("", end="", flush=True)
+                for event in stream:
+                    if (
+                        event.type == "content_block_delta"
+                        and event.delta.type == "text_delta"
+                    ):
+                        print(event.delta.text, end="", flush=True)
+
+                response = stream.get_final_message()
+            print()  # newline after streamed response
+
+            stop_reason = response.stop_reason
+
+            if stop_reason == "end_turn":
+                return "".join(
+                    block.text
+                    for block in response.content
+                    if hasattr(block, "text")
+                )
+
+            elif stop_reason == "pause_turn":
+                messages.append({"role": "assistant", "content": response.content})
+                continue
+
+            elif stop_reason == "tool_use":
+                messages.append({"role": "assistant", "content": response.content})
+                tool_results = []
+
+                for block in response.content:
+                    if block.type != "tool_use":
+                        continue
+                    if block.name in SERVER_SIDE_TOOLS:
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": "Server-side tool executed.",
+                        })
+                        continue
+
+                    # Execute custom tool (e.g., save_content for live demos)
+                    console.print(
+                        f"\n[dim]  [tool: {block.name}...][/dim]", end=""
+                    )
+                    result = execute_tool(block.name, block.input)
+                    if result.get("success") and result.get("file_path"):
+                        console.print(f" [dim]saved → {result['file_path']}[/dim]")
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(result),
+                    })
+
+                messages.append({"role": "user", "content": tool_results})
+
+            else:
+                return "".join(
+                    block.text
+                    for block in response.content
+                    if hasattr(block, "text")
+                )
+
+        return "..."
 
     def apply_to_job(
         self,

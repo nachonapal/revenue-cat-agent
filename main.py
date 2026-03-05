@@ -183,6 +183,37 @@ def run(
 
 
 @app.command()
+def interview(
+    interviewer: str = typer.Option(
+        "",
+        "--interviewer", "-i",
+        help="Name of the RevenueCat interviewer (e.g. 'Jacob')",
+    ),
+    role: str = typer.Option(
+        "",
+        "--role", "-r",
+        help="Interviewer's role at RevenueCat (e.g. 'Head of Developer Relations')",
+    ),
+):
+    """
+    Start an interactive interview session with the agent.
+
+    A RevenueCat employee types questions and the agent responds conversationally,
+    with full conversation memory across turns. The agent can use web search and
+    demonstrate capabilities live (write a blog post, design an experiment, etc.).
+
+    Press Ctrl+C or type 'exit' to end the session.
+
+    Examples:
+      python main.py interview
+      python main.py interview --interviewer "Jacob" --role "Head of DevRel"
+    """
+    _check_api_key()
+    agent = _get_agent()
+    agent.interview(interviewer_name=interviewer, interviewer_role=role)
+
+
+@app.command()
 def demo():
     """
     Run a demonstration of all key capabilities:
